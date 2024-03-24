@@ -11,15 +11,19 @@ PGDUMP=${PGDUMP:-'/dump'}
 export PGPASSWORD=${PGPASSWORD:-$POSTGRES_PASSWORD}
 
 DATE=$(date +%Y%m%d_%H%M%S)
-FILE="$PGDUMP/$PREFIX-$POSTGRES_DB-$DATE.sql"
 
 mkdir -p "${PGDUMP}"
 
-echo "--------"
-echo "Job started: $(date). Dumping to ${FILE}"
+psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -t -c "SELECT datname FROM pg_database WHERE datistemplate = false;" > ./db_list.txt
 
-pg_dump -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -f "$FILE" -d "$POSTGRES_DB"
-gzip "$FILE"
+while read p; do
+    echo "--------"
+    echo "Job started: $(date). Dumping to ${FILE}"
+    
+    FILE="$PGDUMP/$PREFIX-$p-$DATE.sql"
+    pg_dump -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d $p > "$FILE"
+    gzip "$FILE"
+done <./db_list.txt
 
 if [[ -n "${RETAIN_COUNT}" ]]; then
     file_count=1
